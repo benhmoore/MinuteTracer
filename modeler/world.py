@@ -1,4 +1,5 @@
 from modeler.world_object import *
+from modeler.light import *
 
 class World(WorldObject):
     def __init__(self, ppu:int=16, unit:str="cm"):
@@ -14,6 +15,15 @@ class World(WorldObject):
     
     def addObject(self, world_object: WorldObject):
         self.objects.append(world_object)
+
+    def getLights(self):
+        lights = []
+        for world_obj in self.objects:
+            if isinstance(world_obj, Light):
+                lights.append(world_obj)
+
+        print(lights[0].__class__.__name__)
+        return lights
 
 
 world = World()

@@ -1,4 +1,5 @@
 from PIL import Image, ImageDraw
+import math
 from math import inf, sqrt
 
 class Renderer:
@@ -25,6 +26,42 @@ class Renderer:
 
     def _subtractVec(self, a:tuple, b:tuple) -> tuple[float]:
         return (a[0]-b[0], a[1]-b[1], a[2]-b[2])
+    
+    def _multiplyVec(self, k:float, vec:tuple) -> tuple[float]:
+        return (k*vec[0], k*vec[1], k*vec[2])
+
+    def _addVec(self, a:tuple, b:tuple) -> tuple[float]:
+        return (a[0]+b[0], a[1]+b[1], a[2]+b[2])
+
+    def _lengthVec(self, a:tuple) -> float:
+        return sqrt(self._dotProduct(a, a))
+
+    def _clampColorVec(self, color_vec) -> tuple[int]:
+        """Clamps a color vector to integer values between 0 and 255.
+        """
+        return (
+                int(min(255, max(0, color_vec[0]))),
+                int(min(255, max(0, color_vec[1]))),
+                int(min(255, max(0, color_vec[2]))),
+            )
+
+    def _computeLighting(self, point_vec, normal_vec):
+        intensity = 0.0
+
+        for light in self.world.getLights():
+            if light.__class__.__name__ == 'AmbientLight':
+                intensity += light.intensity
+            else: 
+                if light.__class__.__name__ == 'PointLight':
+                    L = self._subtractVec(light.position, point_vec)
+                else:
+                    L = light.direction
+
+                normal_dot_L = self._dotProduct(normal_vec, L)
+                if normal_dot_L > 0:
+                    intensity += (light.intensity * normal_dot_L) / (self._lengthVec(normal_vec) * self._lengthVec(L))
+        
+        return intensity
 
     def _intersectRaySphere(self, camera_vec, direction_vec, world_obj):
         
@@ -48,7 +85,10 @@ class Renderer:
         closest_t = inf
         closest_sphere = None
 
+        self.world.getLights()
+
         for world_obj in self.world.objects:
+
             t_1, t_2 = self._intersectRaySphere(camera_vec, direction_vec, world_obj)
             if (t_1 <= t_max and t_1 >= t_min) and t_1 < closest_t:
                 closest_t = t_1
@@ -60,7 +100,20 @@ class Renderer:
 
         if closest_sphere == None:
             return None
-        return closest_sphere.color
+        
+        # Compute intersection
+        # point_vec = camera_vec + closest_t * direction_vec
+        point_vec = self._addVec(camera_vec, self._multiplyVec(closest_t, direction_vec))
+
+        # Compute sphere normal at intersection
+        normal_vec = self._subtractVec(point_vec, closest_sphere.position)
+
+        # Normalize
+        normal_vec = self._multiplyVec(1.0 / self._lengthVec(normal_vec), normal_vec)
+
+        computed_color_vec = self._multiplyVec(self._computeLighting(point_vec, normal_vec), closest_sphere.color)
+
+        return self._clampColorVec(computed_color_vec)
 
     def render(self) -> Image:
         """Renders the scene and returns a PIL Image.
