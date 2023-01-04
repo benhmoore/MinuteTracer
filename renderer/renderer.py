@@ -2,9 +2,11 @@ from PIL import Image, ImageDraw
 import math
 from math import inf, sqrt
 
+import time
+
 class Renderer:
 
-    EPSILON = 0.001
+    EPSILON = 0.000001
 
     def __init__(self, world, pixel_dimensions:tuple, background_color:tuple=(255,255,255)):
         self.world = world
@@ -35,6 +37,9 @@ class Renderer:
 
     def _addVec(self, a:tuple, b:tuple) -> tuple[float]:
         return (a[0]+b[0], a[1]+b[1], a[2]+b[2])
+
+    def _reflectVec(self, v1:tuple, v2:tuple) -> tuple[float]:
+        return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
 
     def _lengthVec(self, a:tuple) -> float:
         return sqrt(self._dotProduct(a, a))
@@ -79,7 +84,7 @@ class Renderer:
         
                 # Specular
                 if specular != -1:
-                    R_vec = self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(normal_vec, L), normal_vec), L)
+                    R_vec = self._reflectVec(L, normal_vec)
                     R_dot_V = self._dotProduct(R_vec, view_vec)
                     if R_dot_V > 0:
                         intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_V), specular)
@@ -119,10 +124,10 @@ class Renderer:
 
         return closest_sphere, closest_t
     
-    def _traceRay(self, origin, direction_vec, t_min, t_max):
+    def _traceRay(self, origin, direction_vec, t_min, t_max, recursion_depth:int=3):
         closest_sphere, closest_t = self._calculateClosestIntersection(origin, direction_vec, t_min, t_max)
         if closest_sphere == None:
-            return None
+            return (0,0,0)
         
         # Compute intersection
         # point = origin + closest_t * direction_vec
@@ -132,15 +137,26 @@ class Renderer:
         normal_vec = self._subtractVec(point, closest_sphere.position)
 
         # Normalize
-        normal_vec = self._multiplyVec(1.0 / self._lengthVec(normal_vec), normal_vec)
+        normal_length = self._lengthVec(normal_vec)
+        if normal_length == 0: # prevent division by zero by adding EPSILON
+            normal_length += self.EPSILON
+        normal_vec = self._multiplyVec(1.0 / normal_length, normal_vec)
 
         # View vector is simply the inverse of the ray direction vector
         view_vec = self._multiplyVec(-1, direction_vec)
 
         lighting = self._computeLighting(point, normal_vec, view_vec, closest_sphere.specular)
-        computed_color_vec = self._multiplyVec(lighting, closest_sphere.color)
+        local_color = self._multiplyVec(lighting, closest_sphere.color)
 
-        return self._clampColorVec(computed_color_vec)
+        if closest_sphere.reflective <= 0 or recursion_depth <= 0:
+            return self._clampColorVec(local_color)
+        
+        reflected_vec = self._reflectVec(view_vec, normal_vec)
+        reflected_color = self._traceRay(point, reflected_vec, self.EPSILON, inf, recursion_depth-1)
+
+
+        local_color = self._addVec(self._multiplyVec(1 - closest_sphere.reflective, local_color), self._multiplyVec(closest_sphere.reflective, reflected_color))
+        return self._clampColorVec(local_color)
 
     def render(self) -> Image:
         """Renders the scene and returns a PIL Image.
@@ -155,7 +171,7 @@ class Renderer:
         for x in range(-self.width // 2, self.width // 2):
             for y in range(-self.height // 2, self.height // 2):
                 direction_vec = self._canvasToViewport(x, y)
-                color = self._traceRay(origin, direction_vec, 1, inf)
+                color = self._traceRay(origin, direction_vec, 1, inf, 3)
                 
                 if color:
                     self.putPixel(x, y, color)
