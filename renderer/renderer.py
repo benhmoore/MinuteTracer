@@ -3,6 +3,9 @@ import math
 from math import inf, sqrt
 
 class Renderer:
+
+    EPSILON = 0.001
+
     def __init__(self, world, pixel_dimensions:tuple, background_color:tuple=(255,255,255)):
         self.world = world
         self.width, self.height = pixel_dimensions
@@ -45,7 +48,7 @@ class Renderer:
                 int(min(255, max(0, color_vec[2]))),
             )
 
-    def _computeLighting(self, point_vec, normal_vec, view_vec, specular):
+    def _computeLighting(self, point, normal_vec, view_vec, specular):
         intensity = 0.0
         length_normal = self._lengthVec(normal_vec)
         length_V = self._lengthVec(view_vec)
@@ -58,9 +61,16 @@ class Renderer:
                 intensity += light.intensity
             else: 
                 if light.__class__.__name__ == 'PointLight':
-                    L = self._subtractVec(light.position, point_vec)
+                    L = self._subtractVec(light.position, point)
+                    t_max = 1.0
                 else:
                     L = light.direction
+                    t_max = inf
+
+                # Shadow check
+                shadow_sphere, shadow_t = self._calculateClosestIntersection(point, L, self.EPSILON, t_max)
+                if shadow_sphere:
+                    continue
 
                 # Diffuse
                 normal_dot_L = self._dotProduct(normal_vec, L)
@@ -75,10 +85,10 @@ class Renderer:
                         intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_V), specular)
         return intensity
 
-    def _intersectRaySphere(self, camera_vec, direction_vec, world_obj):
+    def _intersectRaySphere(self, origin, direction_vec, world_obj):
         
         # Hardcoded to assume all objects are spheres
-        CO = self._subtractVec(camera_vec, world_obj.position)
+        CO = self._subtractVec(origin, world_obj.position)
 
         a = self._dotProduct(direction_vec, direction_vec)
         b = 2*self._dotProduct(CO, direction_vec)
@@ -92,33 +102,34 @@ class Renderer:
         t_2 = (-b - sqrt(discriminant)) / (2*a)
 
         return t_1, t_2
-    
-    def _traceRay(self, camera_vec, direction_vec, t_min, t_max):
-        closest_t = inf
-        closest_sphere = None
 
-        self.world.getLights()
+    def _calculateClosestIntersection(self, origin, direction_vec, t_min, t_max):
+        closest_sphere = None
+        closest_t = inf
 
         for world_obj in self.world.objects:
 
-            t_1, t_2 = self._intersectRaySphere(camera_vec, direction_vec, world_obj)
-            if (t_1 <= t_max and t_1 >= t_min) and t_1 < closest_t:
+            t_1, t_2 = self._intersectRaySphere(origin, direction_vec, world_obj)
+            if (t_1 < t_max and t_1 > t_min) and t_1 < closest_t:
                 closest_t = t_1
                 closest_sphere = world_obj
-            
-            if (t_2 <= t_max and t_2 >= t_min) and t_2 < closest_t:
+            if (t_2 < t_max and t_2 > t_min) and t_2 < closest_t:
                 closest_t = t_2
                 closest_sphere = world_obj
 
+        return closest_sphere, closest_t
+    
+    def _traceRay(self, origin, direction_vec, t_min, t_max):
+        closest_sphere, closest_t = self._calculateClosestIntersection(origin, direction_vec, t_min, t_max)
         if closest_sphere == None:
             return None
         
         # Compute intersection
-        # point_vec = camera_vec + closest_t * direction_vec
-        point_vec = self._addVec(camera_vec, self._multiplyVec(closest_t, direction_vec))
+        # point = origin + closest_t * direction_vec
+        point = self._addVec(origin, self._multiplyVec(closest_t, direction_vec))
 
         # Compute sphere normal at intersection
-        normal_vec = self._subtractVec(point_vec, closest_sphere.position)
+        normal_vec = self._subtractVec(point, closest_sphere.position)
 
         # Normalize
         normal_vec = self._multiplyVec(1.0 / self._lengthVec(normal_vec), normal_vec)
@@ -126,7 +137,7 @@ class Renderer:
         # View vector is simply the inverse of the ray direction vector
         view_vec = self._multiplyVec(-1, direction_vec)
 
-        lighting = self._computeLighting(point_vec, normal_vec, view_vec, closest_sphere.specular)
+        lighting = self._computeLighting(point, normal_vec, view_vec, closest_sphere.specular)
         computed_color_vec = self._multiplyVec(lighting, closest_sphere.color)
 
         return self._clampColorVec(computed_color_vec)
@@ -139,12 +150,12 @@ class Renderer:
         self.image = Image.new("RGB", (self.width, self.height), self.background_color)
         self.ctx = ImageDraw.Draw(self.image)
 
-        camera_vec = (0, 0, 0) # defines origin of world space
+        origin = (0, 0, 0) # defines origin of world space
 
         for x in range(-self.width // 2, self.width // 2):
             for y in range(-self.height // 2, self.height // 2):
                 direction_vec = self._canvasToViewport(x, y)
-                color = self._traceRay(camera_vec, direction_vec, 1, inf)
+                color = self._traceRay(origin, direction_vec, 1, inf)
                 
                 if color:
                     self.putPixel(x, y, color)
