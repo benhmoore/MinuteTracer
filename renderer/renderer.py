@@ -45,8 +45,13 @@ class Renderer:
                 int(min(255, max(0, color_vec[2]))),
             )
 
-    def _computeLighting(self, point_vec, normal_vec):
+    def _computeLighting(self, point_vec, normal_vec, view_vec, specular):
         intensity = 0.0
+        length_normal = self._lengthVec(normal_vec)
+        length_V = self._lengthVec(view_vec)
+
+        if len(self.world.getLights()) < 1:
+            return 1.0
 
         for light in self.world.getLights():
             if light.__class__.__name__ == 'AmbientLight':
@@ -57,10 +62,17 @@ class Renderer:
                 else:
                     L = light.direction
 
+                # Diffuse
                 normal_dot_L = self._dotProduct(normal_vec, L)
                 if normal_dot_L > 0:
-                    intensity += (light.intensity * normal_dot_L) / (self._lengthVec(normal_vec) * self._lengthVec(L))
+                    intensity += (light.intensity * normal_dot_L) / (length_normal * self._lengthVec(L))
         
+                # Specular
+                if specular != -1:
+                    R_vec = self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(normal_vec, L), normal_vec), L)
+                    R_dot_V = self._dotProduct(R_vec, view_vec)
+                    if R_dot_V > 0:
+                        intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_V), specular)
         return intensity
 
     def _intersectRaySphere(self, camera_vec, direction_vec, world_obj):
@@ -111,7 +123,11 @@ class Renderer:
         # Normalize
         normal_vec = self._multiplyVec(1.0 / self._lengthVec(normal_vec), normal_vec)
 
-        computed_color_vec = self._multiplyVec(self._computeLighting(point_vec, normal_vec), closest_sphere.color)
+        # View vector is simply the inverse of the ray direction vector
+        view_vec = self._multiplyVec(-1, direction_vec)
+
+        lighting = self._computeLighting(point_vec, normal_vec, view_vec, closest_sphere.specular)
+        computed_color_vec = self._multiplyVec(lighting, closest_sphere.color)
 
         return self._clampColorVec(computed_color_vec)
 

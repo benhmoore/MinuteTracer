@@ -21,8 +21,7 @@ class World(WorldObject):
         for world_obj in self.objects:
             if isinstance(world_obj, Light):
                 lights.append(world_obj)
-
-        print(lights[0].__class__.__name__)
+                
         return lights
 
 

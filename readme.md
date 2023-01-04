@@ -1,6 +1,6 @@
 This project consists of a ray-tracing renderer following the implementation outlined in Gabriel Gambetta's *Computer Graphics From Scratch*, available for purchase [here](https://nostarch.com/computer-graphics-scratch).
 
-A demo can be found in the file, `demo.py`.
+A demo script exists for each applicable chapter of the book. For example, run `chapter_2.py` to output the scene depicted at the end of Chapter 2.
 
 This repository consists of the following project components:
 
