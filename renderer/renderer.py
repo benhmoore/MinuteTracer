@@ -12,6 +12,13 @@ class Renderer:
         self.width, self.height = pixel_dimensions
         self.background_color = background_color
 
+        self.camera_rotation = [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]
+        ]
+        self.camera_position = (0, 0, 0)
+        
         self.d = 1 # Initialize distance between camera and viewport to 1
 
     def _canvasToViewport(self, x:int, y:int) -> tuple[float]:
@@ -33,6 +40,14 @@ class Renderer:
     
     def _multiplyVec(self, k:float, vec:tuple) -> tuple[float]:
         return (k*vec[0], k*vec[1], k*vec[2])
+
+    def _multiplyMat(self, mat, vec):
+        result_vec = [0, 0, 0]
+        for i in range(0, 3):
+            for j in range(0, 3):
+                result_vec[i] += vec[j] * mat[i][j]
+        
+        return tuple(result_vec)
 
     def _addVec(self, a:tuple, b:tuple) -> tuple[float]:
         return (a[0]+b[0], a[1]+b[1], a[2]+b[2])
@@ -172,14 +187,24 @@ class Renderer:
         for x in range(-self.width // 2, self.width // 2):
             for y in range(-self.height // 2, self.height // 2):
                 direction_vec = self._canvasToViewport(x, y)
-                color = self._traceRay(origin, direction_vec, 1, math.inf, 3)
+                
+                # Apply camera rotation matrix
+                direction_vec = self._multiplyMat(self.camera_rotation, direction_vec)
+
+                color = self._traceRay(self.camera_position, direction_vec, 1, math.inf, 3)
                 
                 if color:
-                    self.putPixel(x, y, color)
+                    self._putPixel(x, y, color)
 
         return self.image
 
-    def putPixel(self, x:int, y:int, color:tuple=(0, 0, 0)) -> None:
+    def setCameraRotation(self, rotation_mat:list[list]) -> None:
+        self.camera_rotation = rotation_mat
+
+    def setCameraPosition(self, position_vec:tuple[float]) -> None:
+        self.camera_position = position_vec
+
+    def _putPixel(self, x:int, y:int, color:tuple=(0, 0, 0)) -> None:
         """Places a pixel relative to the origin defined at the center of the canvas.
         Conforms to formulas given on page 3 of CGFS.
         Args:
