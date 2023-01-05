@@ -1,14 +1,13 @@
 from PIL import Image, ImageDraw
 import math
-from math import inf, sqrt
 
 import time
 
+EPSILON = 0.000001
+
 class Renderer:
 
-    EPSILON = 0.000001
-
-    def __init__(self, world, pixel_dimensions:tuple, background_color:tuple=(255,255,255)):
+    def __init__(self, world, pixel_dimensions:tuple, background_color:tuple=(0,0,0)):
         self.world = world
         self.width, self.height = pixel_dimensions
         self.background_color = background_color
@@ -42,7 +41,7 @@ class Renderer:
         return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
 
     def _lengthVec(self, a:tuple) -> float:
-        return sqrt(self._dotProduct(a, a))
+        return math.sqrt(self._dotProduct(a, a))
 
     def _clampColorVec(self, color_vec) -> tuple[int]:
         """Clamps a color vector to integer values between 0 and 255.
@@ -64,16 +63,16 @@ class Renderer:
         for light in self.world.getLights():
             if light.__class__.__name__ == 'AmbientLight':
                 intensity += light.intensity
-            else: 
+            else:
                 if light.__class__.__name__ == 'PointLight':
                     L = self._subtractVec(light.position, point)
-                    t_max = 1.0
+                    t_max = 1.0 - EPSILON
                 else:
                     L = light.direction
-                    t_max = inf
+                    t_max = math.inf
 
                 # Shadow check
-                shadow_sphere, shadow_t = self._calculateClosestIntersection(point, L, self.EPSILON, t_max)
+                shadow_sphere, shadow_t = self._calculateClosestIntersection(point, L, EPSILON, t_max)
                 if shadow_sphere:
                     continue
 
@@ -90,44 +89,44 @@ class Renderer:
                         intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_V), specular)
         return intensity
 
-    def _intersectRaySphere(self, origin, direction_vec, world_obj):
+    def _intersectRaySphere(self, origin, direction_vec, sphere):
         
         # Hardcoded to assume all objects are spheres
-        CO = self._subtractVec(origin, world_obj.position)
+        CO = self._subtractVec(origin, sphere.position)
 
         a = self._dotProduct(direction_vec, direction_vec)
-        b = 2*self._dotProduct(CO, direction_vec)
-        c = self._dotProduct(CO, CO) - world_obj.radius**2
+        b = 2 * self._dotProduct(CO, direction_vec)
+        c = self._dotProduct(CO, CO) - sphere.radius**2
 
-        discriminant = b**2 - 4*a*c
+        discriminant = b**2 - 4 * a * c
         if discriminant < 0:
-            return inf, inf
+            return math.inf, math.inf
         
-        t_1 = (-b + sqrt(discriminant)) / (2*a)
-        t_2 = (-b - sqrt(discriminant)) / (2*a)
+        t_1 = (-b + math.sqrt(discriminant)) / (2 * a)
+        t_2 = (-b - math.sqrt(discriminant)) / (2 * a)
 
         return t_1, t_2
 
     def _calculateClosestIntersection(self, origin, direction_vec, t_min, t_max):
-        closest_sphere = None
-        closest_t = inf
+        closest_obj = None
+        closest_t = math.inf
 
         for world_obj in self.world.objects:
 
             t_1, t_2 = self._intersectRaySphere(origin, direction_vec, world_obj)
-            if (t_1 < t_max and t_1 > t_min) and t_1 < closest_t:
+            if t_min < t_1 < t_max and t_1 < closest_t:
                 closest_t = t_1
-                closest_sphere = world_obj
-            if (t_2 < t_max and t_2 > t_min) and t_2 < closest_t:
+                closest_obj = world_obj
+            if t_min < t_2 < t_max and t_2 < closest_t:
                 closest_t = t_2
-                closest_sphere = world_obj
+                closest_obj = world_obj
 
-        return closest_sphere, closest_t
+        return closest_obj, closest_t
     
     def _traceRay(self, origin, direction_vec, t_min, t_max, recursion_depth:int=3):
         closest_sphere, closest_t = self._calculateClosestIntersection(origin, direction_vec, t_min, t_max)
         if closest_sphere == None:
-            return (0,0,0)
+            return self.background_color
         
         # Compute intersection
         # point = origin + closest_t * direction_vec
@@ -138,8 +137,10 @@ class Renderer:
 
         # Normalize
         normal_length = self._lengthVec(normal_vec)
-        if normal_length == 0: # prevent division by zero by adding EPSILON
-            normal_length += self.EPSILON
+
+        # prevent division by zero by adding EPSILON
+        if normal_length == 0: normal_length += EPSILON
+        
         normal_vec = self._multiplyVec(1.0 / normal_length, normal_vec)
 
         # View vector is simply the inverse of the ray direction vector
@@ -152,7 +153,7 @@ class Renderer:
             return self._clampColorVec(local_color)
         
         reflected_vec = self._reflectVec(view_vec, normal_vec)
-        reflected_color = self._traceRay(point, reflected_vec, self.EPSILON, inf, recursion_depth-1)
+        reflected_color = self._traceRay(point, reflected_vec, EPSILON, math.inf, recursion_depth-1)
 
 
         local_color = self._addVec(self._multiplyVec(1 - closest_sphere.reflective, local_color), self._multiplyVec(closest_sphere.reflective, reflected_color))
@@ -171,7 +172,7 @@ class Renderer:
         for x in range(-self.width // 2, self.width // 2):
             for y in range(-self.height // 2, self.height // 2):
                 direction_vec = self._canvasToViewport(x, y)
-                color = self._traceRay(origin, direction_vec, 1, inf, 3)
+                color = self._traceRay(origin, direction_vec, 1, math.inf, 3)
                 
                 if color:
                     self.putPixel(x, y, color)
