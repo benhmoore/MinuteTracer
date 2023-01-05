@@ -11,4 +11,4 @@ my_world.addObject(Sphere(1, (-2,0,4), (0,255,0)))
 r_t = Renderer(my_world, pixel_dimensions=(256,256))
 
 frame_img = r_t.render()
-frame_img.save("chapter_2.png")
+frame_img.save("img/chapter_2.png")

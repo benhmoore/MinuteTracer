@@ -1,7 +1,7 @@
 from renderer import Renderer
 from modeler import *
 
-poly_world = World(ppu=2048)
+poly_world = World(ppu=256)
 
 # Define gem made of two triangles
 a = (-0.05, 0.5, 1.1)
@@ -28,11 +28,11 @@ poly_world.addObject(DirectionalLight(0.2,(1,4,4)))
 
 
 
-r_t = Renderer(poly_world, pixel_dimensions=(2048,2048))
+r_t = Renderer(poly_world, pixel_dimensions=(256,256))
 
 # r_t.setCameraPosition((0,0.0,0))
 
 
 frame_img = r_t.render()
-frame_img.save("tri_tests.png")
+frame_img.save("img/triangles.png")
 # print(poly_world.objects[0].normal_vec)

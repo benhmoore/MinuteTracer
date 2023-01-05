@@ -18,4 +18,4 @@ my_world.addObject(DirectionalLight(0.2,(1,4,4)))
 r_t = Renderer(my_world, pixel_dimensions=(256,256))
 
 frame_img = r_t.render()
-frame_img.save("chapter_3.png")
+frame_img.save("img/chapter_3.png")
