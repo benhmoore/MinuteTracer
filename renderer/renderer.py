@@ -35,6 +35,14 @@ class Renderer:
     def _dotProduct(self, a:tuple, b:tuple) -> float:
         return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 
+
+    def _crossProduct(self, a:tuple, b:tuple) -> tuple[float]:
+        return ( 
+            a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0]
+        )
+
     def _subtractVec(self, a:tuple, b:tuple) -> tuple[float]:
         return (a[0]-b[0], a[1]-b[1], a[2]-b[2])
     
@@ -54,6 +62,9 @@ class Renderer:
 
     def _reflectVec(self, v1:tuple, v2:tuple) -> tuple[float]:
         return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
+
+    def _invertVec(self, vec:tuple) -> tuple:
+        return (-vec[0], -vec[1], -vec[2])
 
     def _lengthVec(self, a:tuple) -> float:
         return math.sqrt(self._dotProduct(a, a))
@@ -122,25 +133,89 @@ class Renderer:
 
         return t_1, t_2
 
+    def _intersectRayTriangle(self, origin, direction_vec, triangle):
+
+        p1 = triangle.points[0]
+        p2 = triangle.points[1]
+        p3 = triangle.points[2]
+
+        # Compute the normal of the plane that contains the triangle
+        p1p2 = self._subtractVec(p2, p1)
+        p1p3 = self._subtractVec(p3, p1)
+
+        plane_normal_vec = triangle.normal_vec
+
+        # Find the distance between the plane and the origin point
+        # plane_normal_len = self._lengthVec(plane_normal_vec)
+
+        d = self._dotProduct(plane_normal_vec, p1)
+
+        # Calculate P - - - 
+
+        # Check if direction_vec and plane are parallel
+        normal_dot_dir = self._dotProduct(plane_normal_vec, direction_vec)
+
+        if normal_dot_dir < EPSILON and normal_dot_dir > 0: # If the dot product is practically zero, they are parallel
+            return math.inf
+        
+        # Compute d
+        d = self._dotProduct(plane_normal_vec, p1)
+
+        # Compute t
+        t = (d - self._dotProduct(plane_normal_vec, origin)) / normal_dot_dir
+
+        # Check if the triangle is behind the ray
+        if t < 0: return math.inf
+
+        # Compute the point of intersection
+        p = self._addVec(origin, self._multiplyVec(t, direction_vec))
+
+        # Inside-Out Test - - - 
+
+        p1p = self._subtractVec(p, p1)
+
+        p2p3 = self._subtractVec(p3, p2)
+        p2p = self._subtractVec(p, p2)
+        p3p1 = self._subtractVec(p1, p3)
+        p3p = self._subtractVec(p, p3)
+
+        u = self._crossProduct(p1p2, p1p)
+        v = self._crossProduct(p2p3, p2p)
+        w = self._crossProduct(p3p1, p3p)
+        
+        # Check if the point is inside the triangle using the barycentric coordinates
+        if (self._dotProduct(u, v) >= 0) and (self._dotProduct(v, w) >= 0):
+            print("Intersected!")
+            return t
+        else:
+            return math.inf
+
     def _calculateClosestIntersection(self, origin, direction_vec, t_min, t_max):
         closest_obj = None
         closest_t = math.inf
 
         for world_obj in self.world.objects:
 
-            t_1, t_2 = self._intersectRaySphere(origin, direction_vec, world_obj)
-            if t_min < t_1 < t_max and t_1 < closest_t:
-                closest_t = t_1
-                closest_obj = world_obj
-            if t_min < t_2 < t_max and t_2 < closest_t:
-                closest_t = t_2
-                closest_obj = world_obj
+            if world_obj.__class__.__name__ == "Sphere":
+                t_1, t_2 = self._intersectRaySphere(origin, direction_vec, world_obj)
+                if t_min < t_1 < t_max and t_1 < closest_t:
+                    closest_t = t_1
+                    closest_obj = world_obj
+                if t_min < t_2 < t_max and t_2 < closest_t:
+                    closest_t = t_2
+                    closest_obj = world_obj
+            elif world_obj.__class__.__name__ == "Triangle":
+                t_1 = self._intersectRayTriangle(origin, direction_vec, world_obj)
+                if t_min < t_1 < t_max and t_1 < closest_t:
+                    closest_t = t_1
+                    closest_obj = world_obj
 
+            # print("Closest object!", closest_obj, closest_t)
         return closest_obj, closest_t
     
     def _traceRay(self, origin, direction_vec, t_min, t_max, recursion_depth:int=3):
-        closest_sphere, closest_t = self._calculateClosestIntersection(origin, direction_vec, t_min, t_max)
-        if closest_sphere == None:
+        closest_obj, closest_t = self._calculateClosestIntersection(origin, direction_vec, t_min, t_max)
+        if closest_obj == None:
             return self.background_color
         
         # Compute intersection
@@ -148,8 +223,11 @@ class Renderer:
         point = self._addVec(origin, self._multiplyVec(closest_t, direction_vec))
 
         # Compute sphere normal at intersection
-        normal_vec = self._subtractVec(point, closest_sphere.position)
-
+        if closest_obj.__class__.__name__ == "Sphere":
+            normal_vec = self._subtractVec(point, closest_obj.position)
+        elif closest_obj.__class__.__name__ == "Triangle":
+            normal_vec = closest_obj.normal_vec
+            
         # Normalize
         normal_length = self._lengthVec(normal_vec)
 
@@ -158,20 +236,25 @@ class Renderer:
         
         normal_vec = self._multiplyVec(1.0 / normal_length, normal_vec)
 
+        # Invert triangle normals for proper lighting
+        if closest_obj.__class__.__name__ == "Triangle":
+            if normal_vec[0] < 0 and normal_vec[1] < 0 and normal_vec[2] < 0:
+                normal_vec = self._multiplyVec(-1, normal_vec)
+
         # View vector is simply the inverse of the ray direction vector
         view_vec = self._multiplyVec(-1, direction_vec)
 
-        lighting = self._computeLighting(point, normal_vec, view_vec, closest_sphere.specular)
-        local_color = self._multiplyVec(lighting, closest_sphere.color)
+        lighting = self._computeLighting(point, normal_vec, view_vec, closest_obj.specular)
+        local_color = self._multiplyVec(lighting, closest_obj.color)
 
-        if closest_sphere.reflective <= 0 or recursion_depth <= 0:
+        if closest_obj.reflective <= 0 or recursion_depth <= 0:
             return self._clampColorVec(local_color)
         
         reflected_vec = self._reflectVec(view_vec, normal_vec)
         reflected_color = self._traceRay(point, reflected_vec, EPSILON, math.inf, recursion_depth-1)
 
 
-        local_color = self._addVec(self._multiplyVec(1 - closest_sphere.reflective, local_color), self._multiplyVec(closest_sphere.reflective, reflected_color))
+        local_color = self._addVec(self._multiplyVec(1 - closest_obj.reflective, local_color), self._multiplyVec(closest_obj.reflective, reflected_color))
         return self._clampColorVec(local_color)
 
     def render(self) -> Image:
