@@ -2,7 +2,7 @@ from renderer import Renderer
 from modeler import World
 from modeler import *
 
-my_world = World(ppu=2048)
+my_world = World(ppu=512)
 
 # Spheres
 my_world.addObject(Sphere(1, (0,-1,3), (255,0,0), 500, 0.2))
@@ -15,7 +15,7 @@ my_world.addObject(AmbientLight(0.2))
 my_world.addObject(PointLight(0.6,(2,1,0)))
 my_world.addObject(DirectionalLight(0.2,(1,4,4)))
 
-r_t = Renderer(my_world, pixel_dimensions=(2048,2048))
+r_t = Renderer(my_world, pixel_dimensions=(512,512))
 
 frame_img = r_t.render()
 frame_img.save("chapter_4.png")

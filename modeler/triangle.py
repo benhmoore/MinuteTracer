@@ -18,3 +18,7 @@ class Triangle(WorldObject):
         p1p3 = self._subtractVec(p3, p1)
 
         self.normal_vec = self._crossProduct(p1p2, p1p3)
+        # needs to be inverted
+        
+
+        print(self.normal_vec)

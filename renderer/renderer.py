@@ -63,9 +63,6 @@ class Renderer:
     def _reflectVec(self, v1:tuple, v2:tuple) -> tuple[float]:
         return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
 
-    def _invertVec(self, vec:tuple) -> tuple:
-        return (-vec[0], -vec[1], -vec[2])
-
     def _lengthVec(self, a:tuple) -> float:
         return math.sqrt(self._dotProduct(a, a))
 
@@ -81,7 +78,7 @@ class Renderer:
     def _computeLighting(self, point, normal_vec, view_vec, specular):
         intensity = 0.0
         length_normal = self._lengthVec(normal_vec)
-        length_V = self._lengthVec(view_vec)
+        length_view = self._lengthVec(view_vec)
 
         if len(self.world.getLights()) < 1:
             return 1.0
@@ -102,17 +99,24 @@ class Renderer:
                 if shadow_sphere:
                     continue
 
+                if self._dotProduct(normal_vec, L) < 0 and self._dotProduct(normal_vec, view_vec) < 0:
+                    normal_vec = self._multiplyVec(-1, normal_vec)
+                elif self._dotProduct(normal_vec, L) > 0 and self._dotProduct(normal_vec, view_vec) < 0:
+                    normal_vec = self._multiplyVec(-1, normal_vec)
+
                 # Diffuse
                 normal_dot_L = self._dotProduct(normal_vec, L)
+                
+
                 if normal_dot_L > 0:
                     intensity += (light.intensity * normal_dot_L) / (length_normal * self._lengthVec(L))
         
-                # Specular
-                if specular != -1:
-                    R_vec = self._reflectVec(L, normal_vec)
-                    R_dot_V = self._dotProduct(R_vec, view_vec)
-                    if R_dot_V > 0:
-                        intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_V), specular)
+                    # Specular
+                    if specular != -1:
+                        R_vec = self._reflectVec(L, normal_vec)
+                        R_dot_V = self._dotProduct(R_vec, view_vec)
+                        if R_dot_V > 0:
+                            intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_view), specular)
         return intensity
 
     def _intersectRaySphere(self, origin, direction_vec, sphere):
@@ -185,7 +189,6 @@ class Renderer:
         
         # Check if the point is inside the triangle using the barycentric coordinates
         if (self._dotProduct(u, v) >= 0) and (self._dotProduct(v, w) >= 0):
-            print("Intersected!")
             return t
         else:
             return math.inf
@@ -210,7 +213,6 @@ class Renderer:
                     closest_t = t_1
                     closest_obj = world_obj
 
-            # print("Closest object!", closest_obj, closest_t)
         return closest_obj, closest_t
     
     def _traceRay(self, origin, direction_vec, t_min, t_max, recursion_depth:int=3):
@@ -235,11 +237,6 @@ class Renderer:
         if normal_length == 0: normal_length += EPSILON
         
         normal_vec = self._multiplyVec(1.0 / normal_length, normal_vec)
-
-        # Invert triangle normals for proper lighting
-        if closest_obj.__class__.__name__ == "Triangle":
-            if normal_vec[0] < 0 and normal_vec[1] < 0 and normal_vec[2] < 0:
-                normal_vec = self._multiplyVec(-1, normal_vec)
 
         # View vector is simply the inverse of the ray direction vector
         view_vec = self._multiplyVec(-1, direction_vec)

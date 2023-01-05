@@ -1,42 +1,36 @@
 from renderer import Renderer
 from modeler import *
 
-poly_world = World(ppu=1024)
+poly_world = World(ppu=2048)
 
-# Background Spheres
-poly_world.addObject(Sphere(.3, (0.35, 0, 1.8), (255, 150, 64), 100, 0.3))
-poly_world.addObject(Sphere(.3, (-0.35, 0, 1.8), (100, 100, 255), 100, 0.3))
-# poly_world.addObject(Sphere(.1, (-.3, 0, 3), (200, 150, 64)))
-# poly_world.addObject(Sphere(.1, (0, -0.3, 2), (100, 150, 64)))
+# Define gem made of two triangles
+a = (-0.05, 0.5, 1.1)
+b1 = (-0.3, 0, 2)
+b2 = (0.3, 0, 2)
+c = (0.05, -0.3, 1.1)
 
-# # First poly!
-a1 = (0, 0.5, 2)
-a2 = (0.001, 0.501, 2.001)
-b1 = (-0.3, 0, 3)
-b2 = (0.3, 0, 3)
-c1 = (0, -0.3, 1)
-c2 = (0.001, -0.3001, 2.001)
+# # normal should be inverted
+poly_world.addObject(Triangle((a, b1, c),(255,255,0), 500, 0.4))
 
-poly_world.addObject(Triangle((a1, b1, c1),(0,255,0), 100, 0.3))
-poly_world.addObject(Triangle((a2, b2, c2),(0,255,0), 100, 0.3))
+# # normal calculation correct
+poly_world.addObject(Triangle((a, b2, c),(255,255,0),500, 0.4))
 
-
-# # Second poly!
-# a = (1, 0, 5)
-# b = (1, 1, 5)
-# c = (-2, 0.5, 12)
-
-# poly_world.addObject(Triangle((a, b, c),(0,255,0), 1, 0.1))
-
+# Spheres
+poly_world.addObject(Sphere(1, (0,-1,3), (255,0,0), 500, 0.2))
+poly_world.addObject(Sphere(1, (2,0,4), (0,0,255), 500, 0.3))
+poly_world.addObject(Sphere(1, (-2,0,4), (0,255,0), 10, 0.4))
+poly_world.addObject(Sphere(5000, (0,-5001,0), (255,255,0), 1000, 0.5))
 
 # Lights
 poly_world.addObject(AmbientLight(0.2))
-poly_world.addObject(PointLight(0.9,(-2,5,4)))
+poly_world.addObject(PointLight(0.6,(2,1,0)))
 poly_world.addObject(DirectionalLight(0.2,(1,4,4)))
 
-r_t = Renderer(poly_world, pixel_dimensions=(1024,1024))
 
-r_t.setCameraPosition((0,0.0,0))
+
+r_t = Renderer(poly_world, pixel_dimensions=(2048,2048))
+
+# r_t.setCameraPosition((0,0.0,0))
 
 
 frame_img = r_t.render()

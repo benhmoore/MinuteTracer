@@ -39,9 +39,6 @@ class WorldObject:
     def _reflectVec(self, v1:tuple, v2:tuple) -> tuple[float]:
         return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
 
-    def _invertVec(self, vec:tuple) -> tuple:
-        return (-vec[0], -vec[1], -vec[2])
-
     def _lengthVec(self, a:tuple) -> float:
         return math.sqrt(self._dotProduct(a, a))
     
