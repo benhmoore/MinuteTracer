@@ -25,4 +25,4 @@ r_t.setCameraRotation([
 ])
 
 frame_img = r_t.render()
-frame_img.save("img/chapter_5.png")
+frame_img.save("img/camera_position.png")
