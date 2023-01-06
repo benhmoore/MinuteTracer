@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
-import math
+from lib import math_functions
 
-import time
+import math
 
 EPSILON = 0.000001
 
@@ -32,53 +32,10 @@ class Renderer:
 
         return (x*v_w/c_w, y*v_h/c_h, self.d)
 
-    def _dotProduct(self, a:tuple, b:tuple) -> float:
-        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
-
-
-    def _crossProduct(self, a:tuple, b:tuple) -> tuple[float]:
-        return ( 
-            a[1]*b[2] - a[2]*b[1],
-            a[2]*b[0] - a[0]*b[2],
-            a[0]*b[1] - a[1]*b[0]
-        )
-
-    def _subtractVec(self, a:tuple, b:tuple) -> tuple[float]:
-        return (a[0]-b[0], a[1]-b[1], a[2]-b[2])
-    
-    def _multiplyVec(self, k:float, vec:tuple) -> tuple[float]:
-        return (k*vec[0], k*vec[1], k*vec[2])
-
-    def _multiplyMat(self, mat, vec):
-        result_vec = [0, 0, 0]
-        for i in range(0, 3):
-            for j in range(0, 3):
-                result_vec[i] += vec[j] * mat[i][j]
-        
-        return tuple(result_vec)
-
-    def _addVec(self, a:tuple, b:tuple) -> tuple[float]:
-        return (a[0]+b[0], a[1]+b[1], a[2]+b[2])
-
-    def _reflectVec(self, v1:tuple, v2:tuple) -> tuple[float]:
-        return self._subtractVec(self._multiplyVec(2.0 * self._dotProduct(v2, v1), v2), v1)
-
-    def _lengthVec(self, a:tuple) -> float:
-        return math.sqrt(self._dotProduct(a, a))
-
-    def _clampColorVec(self, color_vec) -> tuple[int]:
-        """Clamps a color vector to integer values between 0 and 255.
-        """
-        return (
-                int(min(255, max(0, color_vec[0]))),
-                int(min(255, max(0, color_vec[1]))),
-                int(min(255, max(0, color_vec[2]))),
-            )
-
     def _computeLighting(self, point, normal_vec, view_vec, specular):
         intensity = 0.0
-        length_normal = self._lengthVec(normal_vec)
-        length_view = self._lengthVec(view_vec)
+        length_normal = math_functions._lengthVec(normal_vec)
+        length_view = math_functions._lengthVec(view_vec)
 
         if len(self.world.getLights()) < 1:
             return 1.0
@@ -88,7 +45,7 @@ class Renderer:
                 intensity += light.intensity
             else:
                 if light.__class__.__name__ == 'PointLight':
-                    L = self._subtractVec(light.position, point)
+                    L = math_functions._subtractVec(light.position, point)
                     t_max = 1.0 - EPSILON
                 else:
                     L = light.direction
@@ -99,34 +56,33 @@ class Renderer:
                 if shadow_sphere:
                     continue
 
-                if self._dotProduct(normal_vec, L) < 0 and self._dotProduct(normal_vec, view_vec) < 0:
-                    normal_vec = self._multiplyVec(-1, normal_vec)
-                elif self._dotProduct(normal_vec, L) > 0 and self._dotProduct(normal_vec, view_vec) < 0:
-                    normal_vec = self._multiplyVec(-1, normal_vec)
+                if math_functions._dotProduct(normal_vec, L) < 0 and math_functions._dotProduct(normal_vec, view_vec) < 0:
+                    normal_vec = math_functions._multiplyVec(-1, normal_vec)
+                elif math_functions._dotProduct(normal_vec, L) > 0 and math_functions._dotProduct(normal_vec, view_vec) < 0:
+                    normal_vec = math_functions._multiplyVec(-1, normal_vec)
 
                 # Diffuse
-                normal_dot_L = self._dotProduct(normal_vec, L)
+                normal_dot_L = math_functions._dotProduct(normal_vec, L)
                 
 
                 if normal_dot_L > 0:
-                    intensity += (light.intensity * normal_dot_L) / (length_normal * self._lengthVec(L))
+                    intensity += (light.intensity * normal_dot_L) / (length_normal * math_functions._lengthVec(L))
         
                     # Specular
                     if specular != -1:
-                        R_vec = self._reflectVec(L, normal_vec)
-                        R_dot_V = self._dotProduct(R_vec, view_vec)
+                        R_vec = math_functions._reflectVec(L, normal_vec)
+                        R_dot_V = math_functions._dotProduct(R_vec, view_vec)
                         if R_dot_V > 0:
-                            intensity += light.intensity * math.pow(R_dot_V / (self._lengthVec(R_vec) * length_view), specular)
+                            intensity += light.intensity * math.pow(R_dot_V / (math_functions._lengthVec(R_vec) * length_view), specular)
         return intensity
 
     def _intersectRaySphere(self, origin, direction_vec, sphere):
-        
-        # Hardcoded to assume all objects are spheres
-        CO = self._subtractVec(origin, sphere.position)
 
-        a = self._dotProduct(direction_vec, direction_vec)
-        b = 2 * self._dotProduct(CO, direction_vec)
-        c = self._dotProduct(CO, CO) - sphere.radius**2
+        CO = math_functions._subtractVec(origin, sphere.position)
+
+        a = math_functions._dotProduct(direction_vec, direction_vec)
+        b = 2 * math_functions._dotProduct(CO, direction_vec)
+        c = math_functions._dotProduct(CO, CO) - sphere.radius_sq
 
         discriminant = b**2 - 4 * a * c
         if discriminant < 0:
@@ -144,51 +100,51 @@ class Renderer:
         p3 = triangle.points[2]
 
         # Compute the normal of the plane that contains the triangle
-        p1p2 = self._subtractVec(p2, p1)
-        p1p3 = self._subtractVec(p3, p1)
+        p1p2 = math_functions._subtractVec(p2, p1)
+        p1p3 = math_functions._subtractVec(p3, p1)
 
         plane_normal_vec = triangle.normal_vec
 
         # Find the distance between the plane and the origin point
-        # plane_normal_len = self._lengthVec(plane_normal_vec)
+        # plane_normal_len = math_functions._lengthVec(plane_normal_vec)
 
-        d = self._dotProduct(plane_normal_vec, p1)
+        d = math_functions._dotProduct(plane_normal_vec, p1)
 
         # Calculate P - - - 
 
         # Check if direction_vec and plane are parallel
-        normal_dot_dir = self._dotProduct(plane_normal_vec, direction_vec)
+        normal_dot_dir = math_functions._dotProduct(plane_normal_vec, direction_vec)
 
         if normal_dot_dir < EPSILON and normal_dot_dir > 0: # If the dot product is practically zero, they are parallel
             return math.inf
         
         # Compute d
-        d = self._dotProduct(plane_normal_vec, p1)
+        d = math_functions._dotProduct(plane_normal_vec, p1)
 
         # Compute t
-        t = (d - self._dotProduct(plane_normal_vec, origin)) / normal_dot_dir
+        t = (d - math_functions._dotProduct(plane_normal_vec, origin)) / normal_dot_dir
 
         # Check if the triangle is behind the ray
         if t < 0: return math.inf
 
         # Compute the point of intersection
-        p = self._addVec(origin, self._multiplyVec(t, direction_vec))
+        p = math_functions._addVec(origin, math_functions._multiplyVec(t, direction_vec))
 
         # Inside-Out Test - - - 
 
-        p1p = self._subtractVec(p, p1)
+        p1p = math_functions._subtractVec(p, p1)
 
-        p2p3 = self._subtractVec(p3, p2)
-        p2p = self._subtractVec(p, p2)
-        p3p1 = self._subtractVec(p1, p3)
-        p3p = self._subtractVec(p, p3)
+        p2p3 = math_functions._subtractVec(p3, p2)
+        p2p = math_functions._subtractVec(p, p2)
+        p3p1 = math_functions._subtractVec(p1, p3)
+        p3p = math_functions._subtractVec(p, p3)
 
-        u = self._crossProduct(p1p2, p1p)
-        v = self._crossProduct(p2p3, p2p)
-        w = self._crossProduct(p3p1, p3p)
+        u = math_functions._crossProduct(p1p2, p1p)
+        v = math_functions._crossProduct(p2p3, p2p)
+        w = math_functions._crossProduct(p3p1, p3p)
         
         # Check if the point is inside the triangle using the barycentric coordinates
-        if (self._dotProduct(u, v) >= 0) and (self._dotProduct(v, w) >= 0):
+        if (math_functions._dotProduct(u, v) >= 0) and (math_functions._dotProduct(v, w) >= 0):
             return t
         else:
             return math.inf
@@ -222,37 +178,37 @@ class Renderer:
         
         # Compute intersection
         # point = origin + closest_t * direction_vec
-        point = self._addVec(origin, self._multiplyVec(closest_t, direction_vec))
+        point = math_functions._addVec(origin, math_functions._multiplyVec(closest_t, direction_vec))
 
         # Compute sphere normal at intersection
         if closest_obj.__class__.__name__ == "Sphere":
-            normal_vec = self._subtractVec(point, closest_obj.position)
+            normal_vec = math_functions._subtractVec(point, closest_obj.position)
         elif closest_obj.__class__.__name__ == "Triangle":
             normal_vec = closest_obj.normal_vec
             
         # Normalize
-        normal_length = self._lengthVec(normal_vec)
+        normal_length = math_functions._lengthVec(normal_vec)
 
         # prevent division by zero by adding EPSILON
         if normal_length == 0: normal_length += EPSILON
         
-        normal_vec = self._multiplyVec(1.0 / normal_length, normal_vec)
+        normal_vec = math_functions._multiplyVec(1.0 / normal_length, normal_vec)
 
         # View vector is simply the inverse of the ray direction vector
-        view_vec = self._multiplyVec(-1, direction_vec)
+        view_vec = math_functions._multiplyVec(-1, direction_vec)
 
         lighting = self._computeLighting(point, normal_vec, view_vec, closest_obj.specular)
-        local_color = self._multiplyVec(lighting, closest_obj.color)
+        local_color = math_functions._multiplyVec(lighting, closest_obj.color)
 
         if closest_obj.reflective <= 0 or recursion_depth <= 0:
-            return self._clampColorVec(local_color)
+            return math_functions._clampColorVec(local_color)
         
-        reflected_vec = self._reflectVec(view_vec, normal_vec)
+        reflected_vec = math_functions._reflectVec(view_vec, normal_vec)
         reflected_color = self._traceRay(point, reflected_vec, EPSILON, math.inf, recursion_depth-1)
 
 
-        local_color = self._addVec(self._multiplyVec(1 - closest_obj.reflective, local_color), self._multiplyVec(closest_obj.reflective, reflected_color))
-        return self._clampColorVec(local_color)
+        local_color = math_functions._addVec(math_functions._multiplyVec(1 - closest_obj.reflective, local_color), math_functions._multiplyVec(closest_obj.reflective, reflected_color))
+        return math_functions._clampColorVec(local_color)
 
     def render(self) -> Image:
         """Renders the scene and returns a PIL Image.
@@ -269,7 +225,7 @@ class Renderer:
                 direction_vec = self._canvasToViewport(x, y)
                 
                 # Apply camera rotation matrix
-                direction_vec = self._multiplyMat(self.camera_rotation, direction_vec)
+                direction_vec = math_functions._multiplyMat(self.camera_rotation, direction_vec)
 
                 color = self._traceRay(self.camera_position, direction_vec, 1, math.inf, 3)
                 

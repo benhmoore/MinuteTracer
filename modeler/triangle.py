@@ -14,10 +14,10 @@ class Triangle(WorldObject):
         p3 = self.points[2]
 
         # Compute the normal of the plane that contains the triangle
-        p1p2 = self._subtractVec(p2, p1)
-        p1p3 = self._subtractVec(p3, p1)
+        p1p2 = math_functions._subtractVec(p2, p1)
+        p1p3 = math_functions._subtractVec(p3, p1)
 
-        self.normal_vec = self._crossProduct(p1p2, p1p3)
+        self.normal_vec = math_functions._crossProduct(p1p2, p1p3)
         # needs to be inverted
         
 
