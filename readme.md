@@ -20,7 +20,7 @@ The development of this minute system of packages will, in general, follow the p
 * [--] **Extended Features and Optimizations**
     * [&#10003;] Support for arbitrary camera position and rotation
     * [&#10003;] Triangle primitive
-    * [--] Geometry primitive supporting complex arrangements of Triangles
+    * [&#10003;] Geometry primitive (Mesh) supporting complex arrangements of Triangles
     * [--] Refactor
     * [--] Render optimizations
     
