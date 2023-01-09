@@ -1,2 +1,2 @@
-# __import__('pkg_resources').declare_namespace(__name__)
-# import lib.math_functions
+from lib.math_functions import *
+from lib.mesh_utils import *

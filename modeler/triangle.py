@@ -1,4 +1,6 @@
+from lib import math_functions
 from modeler.world_object import WorldObject
+
 
 class Triangle(WorldObject):
 
@@ -19,6 +21,3 @@ class Triangle(WorldObject):
 
         self.normal_vec = math_functions._crossProduct(p1p2, p1p3)
         # needs to be inverted
-        
-
-        print(self.normal_vec)

@@ -23,16 +23,10 @@ poly_world.addObject(Sphere(5000, (0,-5001,0), (255,255,0), 1000, 0.5))
 
 # Lights
 poly_world.addObject(AmbientLight(0.2))
-poly_world.addObject(PointLight(0.6,(2,1,0)))
+poly_world.addObject(PointLight(0.6,(2,1,-6)))
 poly_world.addObject(DirectionalLight(0.2,(1,4,4)))
-
-
 
 r_t = Renderer(poly_world, pixel_dimensions=(256,256))
 
-# r_t.setCameraPosition((0,0.0,0))
-
-
 frame_img = r_t.render()
 frame_img.save("img/triangles.png")
-# print(poly_world.objects[0].normal_vec)

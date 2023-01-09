@@ -1,5 +1,6 @@
 from modeler.world_object import *
 from modeler.light import *
+from modeler.triangle import Triangle
 
 class World(WorldObject):
     def __init__(self, ppu:int=16, unit:str="cm"):
@@ -14,7 +15,11 @@ class World(WorldObject):
 
     
     def addObject(self, world_object: WorldObject):
-        self.objects.append(world_object)
+        if world_object.__class__.__name__ == "Mesh": # Convert mesh to triangles
+            for tri in world_object.mesh_triangles:
+                self.objects.append(Triangle((tri[0], tri[1], tri[2]), world_object.color, world_object.specular, world_object.reflective))
+        else:
+            self.objects.append(world_object)
 
     def getLights(self):
         lights = []
