@@ -16,8 +16,16 @@ class Triangle(WorldObject):
         p3 = self.points[2]
 
         # Compute the normal of the plane that contains the triangle
-        p1p2 = math_functions._subtractVec(p2, p1)
-        p1p3 = math_functions._subtractVec(p3, p1)
+        self.p1p2 = math_functions._subtractVec(p2, p1)
+        self.p1p3 = math_functions._subtractVec(p3, p1)
 
-        self.normal_vec = math_functions._crossProduct(p1p2, p1p3)
-        # needs to be inverted
+        self.p2p3 = math_functions._subtractVec(p3, p2)
+        self.p3p1 = math_functions._subtractVec(p1, p3)
+
+        self.normal_vec = math_functions._crossProduct(self.p1p2, self.p1p3)
+
+        # Compute d
+        self.d = math_functions._dotProduct(self.normal_vec, p1)
+
+        self.ray_origin = None
+        self.normal_dot_origin = None

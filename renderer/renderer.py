@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
 from lib import math_functions
 
-import math
+import math, time
 
 EPSILON = 0.000001
 
@@ -52,9 +52,8 @@ class Renderer:
                     t_max = math.inf
 
                 # Shadow check
-                shadow_sphere, shadow_t = self._calculateClosestIntersection(point, L, EPSILON, t_max)
-                if shadow_sphere:
-                    continue
+                shadow, _ = self._calculateClosestIntersection(point, L, EPSILON, t_max)
+                if shadow: continue
 
                 if math_functions._dotProduct(normal_vec, L) < 0 and math_functions._dotProduct(normal_vec, view_vec) < 0:
                     normal_vec = math_functions._multiplyVec(-1, normal_vec)
@@ -63,7 +62,6 @@ class Renderer:
 
                 # Diffuse
                 normal_dot_L = math_functions._dotProduct(normal_vec, L)
-                
 
                 if normal_dot_L > 0:
                     intensity += (light.intensity * normal_dot_L) / (length_normal * math_functions._lengthVec(L))
@@ -77,7 +75,6 @@ class Renderer:
         return intensity
 
     def _intersectRaySphere(self, origin, direction_vec, sphere):
-
         CO = math_functions._subtractVec(origin, sphere.position)
 
         a = math_functions._dotProduct(direction_vec, direction_vec)
@@ -94,35 +91,22 @@ class Renderer:
         return t_1, t_2
 
     def _intersectRayTriangle(self, origin, direction_vec, triangle):
-
-        p1 = triangle.points[0]
-        p2 = triangle.points[1]
-        p3 = triangle.points[2]
-
-        # Compute the normal of the plane that contains the triangle
-        p1p2 = math_functions._subtractVec(p2, p1)
-        p1p3 = math_functions._subtractVec(p3, p1)
-
-        plane_normal_vec = triangle.normal_vec
-
-        # Find the distance between the plane and the origin point
-        # plane_normal_len = math_functions._lengthVec(plane_normal_vec)
-
-        d = math_functions._dotProduct(plane_normal_vec, p1)
+        p1, p2, p3 = triangle.points
 
         # Calculate P - - - 
 
         # Check if direction_vec and plane are parallel
-        normal_dot_dir = math_functions._dotProduct(plane_normal_vec, direction_vec)
+        normal_dot_dir = math_functions._dotProduct(triangle.normal_vec, direction_vec)
 
-        if normal_dot_dir < EPSILON and normal_dot_dir > 0: # If the dot product is practically zero, they are parallel
+        if math.isclose(normal_dot_dir, 0, rel_tol=EPSILON): # If the dot product is practically zero, they are parallel
             return math.inf
         
-        # Compute d
-        d = math_functions._dotProduct(plane_normal_vec, p1)
-
         # Compute t
-        t = (d - math_functions._dotProduct(plane_normal_vec, origin)) / normal_dot_dir
+        if triangle.normal_dot_origin == None or triangle.ray_origin != origin:
+            triangle.normal_dot_origin = math_functions._dotProduct(triangle.normal_vec, origin)
+            triangle.ray_origin = origin
+
+        t = (triangle.d - triangle.normal_dot_origin) / (normal_dot_dir + EPSILON)
 
         # Check if the triangle is behind the ray
         if t < 0: return math.inf
@@ -131,17 +115,13 @@ class Renderer:
         p = math_functions._addVec(origin, math_functions._multiplyVec(t, direction_vec))
 
         # Inside-Out Test - - - 
-
         p1p = math_functions._subtractVec(p, p1)
-
-        p2p3 = math_functions._subtractVec(p3, p2)
         p2p = math_functions._subtractVec(p, p2)
-        p3p1 = math_functions._subtractVec(p1, p3)
         p3p = math_functions._subtractVec(p, p3)
 
-        u = math_functions._crossProduct(p1p2, p1p)
-        v = math_functions._crossProduct(p2p3, p2p)
-        w = math_functions._crossProduct(p3p1, p3p)
+        u = math_functions._crossProduct(triangle.p1p2, p1p)
+        v = math_functions._crossProduct(triangle.p2p3, p2p)
+        w = math_functions._crossProduct(triangle.p3p1, p3p)
         
         # Check if the point is inside the triangle using the barycentric coordinates
         if (math_functions._dotProduct(u, v) >= 0) and (math_functions._dotProduct(v, w) >= 0):
@@ -214,11 +194,11 @@ class Renderer:
         """Renders the scene and returns a PIL Image.
         """
 
+        start_time = time.perf_counter()
+
         # Create basis image and context
         self.image = Image.new("RGB", (self.width, self.height), self.background_color)
         self.ctx = ImageDraw.Draw(self.image)
-
-        origin = (0, 0, 0) # defines origin of world space
 
         for x in range(-self.width // 2, self.width // 2):
             for y in range(-self.height // 2, self.height // 2):
@@ -231,6 +211,11 @@ class Renderer:
                 
                 if color:
                     self._putPixel(x, y, color)
+
+        
+        end_time = time.perf_counter()
+
+        print(f"Frame render time: {round(end_time - start_time, 2)} sec")
 
         return self.image
 
